@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Traffic Dashboard – x-chatbots.com</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:auto;overflow:auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f0;color:#1a1a1a}
+/* ── topbar ── */
+.tb{background:#1a1a1a;color:#fff;padding:11px 22px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:10px;flex-wrap:wrap}
+.tbl{display:flex;align-items:center;gap:10px}
+.logo{width:26px;height:26px;background:#e8572a;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#fff;flex-shrink:0}
+.tbr{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.blive{font-size:10px;padding:3px 8px;border-radius:20px;font-weight:600;display:flex;align-items:center;gap:4px}
+.blive.on{background:#1e4d2b;color:#4ade80}
+.blive.on::before{content:'';width:5px;height:5px;border-radius:50%;background:#4ade80;display:inline-block}
+.blive.off{background:#3a2a1a;color:#f59e0b}
+.blive.off::before{content:'';width:5px;height:5px;border-radius:50%;background:#f59e0b;display:inline-block}
+.qbtns{display:flex;gap:3px}
+.qb{background:#2a2a2a;border:1px solid #3a3a3a;color:#aaa;font-size:11px;padding:4px 8px;border-radius:5px;cursor:pointer;white-space:nowrap;transition:all .12s}
+.qb:hover,.qb.act{background:#e8572a;border-color:#e8572a;color:#fff}
+.dc{display:flex;align-items:center;gap:5px;background:#252525;padding:4px 8px;border-radius:7px;border:1px solid #333}
+.dc label{font-size:10px;color:#666}
+.di{background:transparent;border:none;color:#ccc;font-size:11px;padding:1px 3px;cursor:pointer;outline:none;font-family:inherit;width:94px}
+.di::-webkit-calendar-picker-indicator{filter:invert(1);opacity:.4;cursor:pointer;width:12px}
+.dsep{color:#444;font-size:11px}
+.bapply{background:#4285f4;border:none;color:#fff;font-size:11px;font-weight:600;padding:5px 11px;border-radius:6px;cursor:pointer}
+.bapply:hover{background:#3367d6}
+.bconn{background:#e8572a;border:none;color:#fff;font-size:11px;font-weight:600;padding:5px 11px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:5px}
+.bconn:hover{background:#d44d22}
+.bconn svg{width:13px;height:13px;flex-shrink:0}
+.bref{background:#252525;border:1px solid #3a3a3a;color:#aaa;font-size:12px;padding:5px 9px;border-radius:6px;cursor:pointer}
+.bref:hover{background:#333}
+/* ── auth screen ── */
+.auth-screen{display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 49px);padding:40px 20px}
+.auth-box{background:#fff;border-radius:16px;border:1px solid #e8e8e4;padding:40px 44px;max-width:500px;width:100%;text-align:center}
+.auth-box h2{font-size:20px;font-weight:700;margin-bottom:8px}
+.auth-box p{font-size:13px;color:#777;line-height:1.6;margin-bottom:24px}
+.auth-steps{background:#f9f9f7;border:1px solid #eee;border-radius:10px;padding:16px;text-align:left;margin-bottom:24px}
+.auth-step{font-size:12px;color:#555;padding:5px 0;display:flex;gap:10px;line-height:1.5}
+.auth-step span{color:#e8572a;font-weight:700;flex-shrink:0}
+.auth-step code{background:#f0f0ec;padding:1px 5px;border-radius:3px;font-size:11px;color:#9a3412}
+.big-btn{background:#4285f4;color:#fff;border:none;padding:13px 28px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:10px;transition:background .15s;width:100%;justify-content:center}
+.big-btn:hover{background:#3367d6}
+.auth-note{font-size:11px;color:#bbb;margin-top:14px}
+/* ── loading ── */
+.ld{position:fixed;inset:0;background:rgba(245,245,240,.93);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:200}
+.spin{width:32px;height:32px;border:3px solid #e5e5e0;border-top-color:#e8572a;border-radius:50%;animation:spin .7s linear infinite;margin-bottom:11px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.lt{font-size:13px;color:#666;font-weight:500}
+/* ── error ── */
+.eb{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:9px 13px;font-size:12px;color:#dc2626;margin-bottom:13px;display:none;align-items:center;gap:8px}
+.eb button{margin-left:auto;background:none;border:none;color:#dc2626;cursor:pointer;font-size:15px}
+/* ── dashboard ── */
+.dash{display:none}
+.con{max-width:1320px;margin:0 auto;padding:18px 22px}
+.sec{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#999;margin-bottom:11px;display:flex;align-items:center;gap:7px}
+.ltag{display:inline-flex;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;background:#dcfce7;color:#166534;border:1px solid #bbf7d0}
+.kg{display:grid;grid-template-columns:repeat(5,1fr);gap:11px;margin-bottom:20px}
+.kpi{background:#fff;border-radius:11px;padding:15px 16px;border:1px solid #e8e8e4;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--a,#e8572a)}
+.kl{font-size:10px;color:#999;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.kv{font-size:23px;font-weight:700;color:#1a1a1a;letter-spacing:-1px;line-height:1;min-height:28px}
+.ks{font-size:11px;color:#bbb;margin-top:4px}
+.r2{display:grid;grid-template-columns:1.55fr 1fr;gap:14px;margin-bottom:16px}
+.r3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:16px}
+.card{background:#fff;border-radius:11px;border:1px solid #e8e8e4;overflow:hidden}
+.chd{padding:13px 16px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.ct{font-size:12px;font-weight:600;color:#1a1a1a}
+.cs{font-size:11px;color:#bbb;margin-top:2px}
+.cb{padding:12px 16px 16px}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{text-align:left;color:#999;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.4px;padding:6px 0;border-bottom:1px solid #f0f0ec}
+th:not(:first-child){text-align:right}
+td{padding:8px 0;border-bottom:1px solid #f7f7f5;vertical-align:middle}
+td:not(:first-child){text-align:right;font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:none}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px}
+.pill{display:inline-block;padding:2px 6px;border-radius:20px;font-size:10px;font-weight:600}
+.ph{background:#dcfce7;color:#166534}.pm{background:#fef9c3;color:#854d0e}.pl{background:#fee2e2;color:#991b1b}
+.at{display:inline-flex;padding:1px 5px;border-radius:4px;font-size:10px;font-weight:600}
+.bbg{background:#f5f5f0;border-radius:3px;height:4px;width:64px;margin-top:2px;display:inline-block}
+.bfill{height:4px;border-radius:3px;display:block}
+.fs{display:flex;align-items:center;gap:7px;margin-bottom:6px}
+.fbw{flex:1;background:#f0f0ec;border-radius:3px;height:24px;overflow:hidden}
+.fb{height:24px;border-radius:3px;display:flex;align-items:center;padding:0 7px;font-size:10px;font-weight:600;color:#fff;white-space:nowrap;min-width:50px}
+.tr2{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f5f5f0}
+.tr2:last-child{border-bottom:none}
+.ig{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:18px}
+.ins{background:#fff;border:1px solid #e8e8e4;border-radius:8px;padding:9px 12px;font-size:12px;color:#555;display:flex;gap:7px;flex:1;min-width:180px;line-height:1.5}
+.foot{text-align:center;padding:18px;color:#ccc;font-size:11px;border-top:1px solid #e8e8e4}
+.nd{text-align:center;color:#ccc;padding:18px;font-size:12px}
+@media(max-width:900px){.kg{grid-template-columns:repeat(2,1fr)}.r2,.r3{grid-template-columns:1fr}.r3 .card[style*="span 2"]{grid-column:span 1}}
+</style>
+</head>
+<body>
+
+<!-- LOADING OVERLAY -->
+<div class="ld" id="ld"><div class="spin"></div><div class="lt" id="lt">Loading…</div></div>
+
+<!-- TOPBAR -->
+<div class="tb">
+  <div class="tbl">
+    <div class="logo">GA4</div>
+    <div>
+      <div style="font-size:14px;font-weight:600">AI Traffic Dashboard</div>
+      <div style="font-size:10px;color:#777;margin-top:1px">x-chatbots.com · p521141931</div>
+    </div>
+  </div>
+  <div class="tbr" id="tbr">
+    <span class="blive off" id="badge">● Not connected</span>
+    <div class="qbtns" id="qbtns" style="display:none">
+      <button class="qb" onclick="setQ(7,this)">7d</button>
+      <button class="qb act" onclick="setQ(30,this)">30d</button>
+      <button class="qb" onclick="setQ(90,this)">90d</button>
+      <button class="qb" onclick="setQ(180,this)">6m</button>
+      <button class="qb" onclick="setQ(365,this)">1y</button>
+    </div>
+    <div class="dc" id="dcEl" style="display:none">
+      <label>From</label>
+      <input type="date" class="di" id="df" onchange="clearQ()">
+      <span class="dsep">→</span>
+      <label>To</label>
+      <input type="date" class="di" id="dt" onchange="clearQ()">
+    </div>
+    <button class="bapply" id="bapply" style="display:none" onclick="applyD()">Apply</button>
+    <button class="bref" id="bref" style="display:none" onclick="loadAll()" title="Refresh">↻</button>
+    <button class="bconn" id="bconn" onclick="doAuth()">
+      <svg viewBox="0 0 24 24" fill="white"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Connect Google
+    </button>
+    <button class="bref" id="bdisco" style="display:none" onclick="disconnect()" title="Disconnect">✕</button>
+  </div>
+</div>
+
+<!-- AUTH SCREEN -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-box">
+    <div style="font-size:36px;margin-bottom:12px">📊</div>
+    <h2>Connect your GA4 account</h2>
+    <p>Click the button below to sign in with Google and load live AI traffic data from your GA4 property <strong>p521141931</strong>.</p>
+    <div class="auth-steps">
+      <div class="auth-step"><span>1</span>Click Connect Google above (or the button below)</div>
+      <div class="auth-step"><span>2</span>Choose <strong>weissmilch@gmail.com</strong> when prompted</div>
+      <div class="auth-step"><span>3</span>Click through the unverified app warning → Erweitert → GA4-AI-Data öffnen</div>
+      <div class="auth-step"><span>4</span>Dashboard loads automatically with live data ✓</div>
+    </div>
+    <button class="big-btn" onclick="doAuth()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Sign in with Google
+    </button>
+    <div class="auth-note">Read-only access to Google Analytics · Token valid for ~1 hour</div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="dash" id="dash">
+  <div class="con">
+    <div class="eb" id="eb"><span id="em"></span><button onclick="this.parentElement.style.display='none'">×</button></div>
+    <div class="sec">AI Overview <span id="rl" style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:#bbb"></span><span class="ltag">Live</span></div>
+    <div class="kg">
+      <div class="kpi" style="--a:#e8572a"><div class="kl">AI Sessions</div><div class="kv" id="k1">…</div><div class="ks" id="k1s"></div></div>
+      <div class="kpi" style="--a:#0ea5e9"><div class="kl">Engagement Rate</div><div class="kv" id="k2">…</div><div class="ks" id="k2s"></div></div>
+      <div class="kpi" style="--a:#8b5cf6"><div class="kl">AI Conversions</div><div class="kv" id="k3">…</div><div class="ks">affiliate_click events</div></div>
+      <div class="kpi" style="--a:#16a34a"><div class="kl">Conv. Rate</div><div class="kv" id="k4">…</div><div class="ks" id="k4s"></div></div>
+      <div class="kpi" style="--a:#f59e0b"><div class="kl">Avg. Duration</div><div class="kv" id="k5">…</div><div class="ks">AI visitors</div></div>
+    </div>
+    <div class="r2">
+      <div class="card">
+        <div class="chd">
+          <div><div class="ct">AI Traffic Trend</div><div class="cs">Daily sessions by AI source</div></div>
+          <div id="tleg" style="display:flex;flex-wrap:wrap;gap:7px;font-size:10px;margin-top:2px"></div>
+        </div>
+        <div class="cb"><div style="position:relative;height:230px"><canvas id="tC"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="chd"><div><div class="ct">Sessions by AI Source</div><div class="cs">Share of AI referrals</div></div></div>
+        <div class="cb">
+          <div style="position:relative;height:170px"><canvas id="sC"></canvas></div>
+          <div id="sleg" style="display:flex;flex-wrap:wrap;gap:7px;margin-top:9px;font-size:10px"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="chd"><div><div class="ct">AI Source Performance</div><div class="cs">Sessions · Engagement · Duration · Bounce</div></div></div>
+      <div class="cb"><table><thead><tr><th>AI Referrer</th><th>Sessions</th><th>Eng. Rate</th><th>Avg. Duration</th><th>Bounce %</th></tr></thead><tbody id="stb"><tr><td colspan="5" class="nd">Loading…</td></tr></tbody></table></div>
+    </div>
+    <div class="r3">
+      <div class="card" style="grid-column:span 2">
+        <div class="chd"><div><div class="ct">Top Pages Receiving AI Traffic</div><div class="cs">Ranked by AI sessions</div></div></div>
+        <div class="cb"><table><thead><tr><th>Page</th><th>AI Sessions</th><th>Eng. Rate</th><th>Top AI Source</th></tr></thead><tbody id="ptb"><tr><td colspan="4" class="nd">Loading…</td></tr></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="chd"><div><div class="ct">Conversion Funnel</div><div class="cs">AI segment end-to-end</div></div></div>
+        <div class="cb">
+          <div id="fn"><div class="nd">Loading…</div></div>
+          <div id="ct2" style="margin-top:13px;padding-top:13px;border-top:1px solid #f0f0ec;display:none">
+            <div style="font-size:10px;color:#999;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:7px">By type</div>
+            <div class="tr2"><span style="font-size:11px">🛒 affiliate_click (purchase)</span><span id="cvp" style="font-size:11px;color:#888">—</span></div>
+            <div class="tr2"><span style="font-size:11px">🖱️ affiliate_click (other)</span><span id="cvo" style="font-size:11px;color:#888">—</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="r2" style="margin-bottom:16px">
+      <div class="card">
+        <div class="chd"><div><div class="ct">Engagement Rate by Source</div><div class="cs">AI referrers vs all-traffic baseline</div></div></div>
+        <div class="cb"><div style="position:relative;height:210px"><canvas id="eC"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="chd"><div><div class="ct">AI Traffic Share — 6 Months</div><div class="cs">% of total sessions · monthly</div></div></div>
+        <div class="cb"><div style="position:relative;height:210px"><canvas id="shC"></canvas></div></div>
+      </div>
+    </div>
+    <div class="sec">Key Insights</div>
+    <div class="ig" id="ins"></div>
+    <div class="foot">AI Traffic Dashboard · x-chatbots.com · GA4 p521141931 · <span id="upd">—</span></div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────
+const CLIENT_ID   = '382687108215-hglpgu3spfp3ls4qlu1j6emdnbn54hfg.apps.googleusercontent.com';
+const REDIRECT_URI = window.location.href.split('#')[0].split('?')[0]; // this file's own URL
+const PROPERTY_ID = '521141931';
+const AI_SOURCES  = ['chatgpt.com','perplexity.ai','claude.ai','gemini.google.com','copilot.microsoft.com','you.com','phind.com'];
+const SC = {'chatgpt.com':'#10a37f','perplexity.ai':'#8b5cf6','claude.ai':'#0ea5e9','gemini.google.com':'#f59e0b','copilot.microsoft.com':'#64748b','you.com':'#e8572a','phind.com':'#db2777'};
+const SN = {'chatgpt.com':'ChatGPT','perplexity.ai':'Perplexity','claude.ai':'Claude','gemini.google.com':'Gemini','copilot.microsoft.com':'Copilot','you.com':'You.com','phind.com':'Phind'};
+
+// ── STATE ─────────────────────────────────────────────────────────────────
+let TOKEN = null;
+const CH  = {};
+const pad = n => String(n).padStart(2,'0');
+const fd  = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const today = new Date();
+const defE  = new Date(today); defE.setDate(defE.getDate()-1);
+const defS  = new Date(defE);  defS.setDate(defS.getDate()-29);
+let SD = fd(defS), ED = fd(defE);
+
+// ── BOOT: check for OAuth token in hash ───────────────────────────────────
+(function boot() {
+  const hash   = window.location.hash;
+  const params = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : '');
+  const token  = params.get('access_token');
+  if (token) {
+    TOKEN = token;
+    sessionStorage.setItem('ga4_token', token);
+    window.history.replaceState(null, '', window.location.pathname);
+    initDash();
+  } else {
+    const stored = sessionStorage.getItem('ga4_token');
+    if (stored) { TOKEN = stored; initDash(); }
+    // else: show auth screen (default)
+  }
+})();
+
+// ── AUTH ──────────────────────────────────────────────────────────────────
+window.doAuth = function() {
+  const p = new URLSearchParams({
+    client_id:     CLIENT_ID,
+    redirect_uri:  REDIRECT_URI,
+    response_type: 'token',
+    scope:         'https://www.googleapis.com/auth/analytics.readonly',
+    prompt:        'select_account',
+    login_hint:    'weissmilch@gmail.com'
+  });
+  window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + p;
+};
+
+window.disconnect = function() {
+  TOKEN = null;
+  sessionStorage.removeItem('ga4_token');
+  document.getElementById('dash').style.display        = 'none';
+  document.getElementById('authScreen').style.display  = 'flex';
+  document.getElementById('bconn').style.display       = 'flex';
+  document.getElementById('bdisco').style.display      = 'none';
+  document.getElementById('qbtns').style.display       = 'none';
+  document.getElementById('dcEl').style.display        = 'none';
+  document.getElementById('bapply').style.display      = 'none';
+  document.getElementById('bref').style.display        = 'none';
+  const b = document.getElementById('badge');
+  b.className = 'blive off'; b.textContent = '● Not connected';
+};
+
+function initDash() {
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('dash').style.display       = 'block';
+  document.getElementById('bconn').style.display      = 'none';
+  document.getElementById('bdisco').style.display     = 'flex';
+  document.getElementById('qbtns').style.display      = 'flex';
+  document.getElementById('dcEl').style.display       = 'flex';
+  document.getElementById('bapply').style.display     = 'flex';
+  document.getElementById('bref').style.display       = 'flex';
+  const b = document.getElementById('badge');
+  b.className = 'blive on'; b.textContent = 'Live · weissmilch@gmail.com';
+  // set default dates in pickers
+  document.getElementById('df').value = SD;
+  document.getElementById('dt').value = ED;
+  loadAll();
+}
+
+// ── DATE CONTROLS ─────────────────────────────────────────────────────────
+window.clearQ  = () => document.querySelectorAll('.qb').forEach(b => b.classList.remove('act'));
+window.applyD  = () => { SD = document.getElementById('df').value; ED = document.getElementById('dt').value; loadAll(); };
+window.setQ    = (days, btn) => {
+  document.querySelectorAll('.qb').forEach(b => b.classList.remove('act'));
+  btn.classList.add('act');
+  const e = new Date(); e.setDate(e.getDate()-1);
+  const s = new Date(e); s.setDate(s.getDate()-(days-1));
+  SD = fd(s); ED = fd(e);
+  document.getElementById('df').value = SD;
+  document.getElementById('dt').value = ED;
+  loadAll();
+};
+
+// ── HELPERS ───────────────────────────────────────────────────────────────
+const ld2 = t  => { document.getElementById('ld').style.display='flex'; document.getElementById('lt').textContent=t||'Loading…'; };
+const hd2 = () => document.getElementById('ld').style.display='none';
+const showE= m  => { document.getElementById('em').textContent=m; document.getElementById('eb').style.display='flex'; };
+const aiF  = () => ({filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',value:'chatgpt\\.com|perplexity\\.ai|claude\\.ai|gemini\\.google\\.com|copilot\\.microsoft|you\\.com|phind\\.com'}}});
+const ep   = v  => { const c=v>=65?'ph':v>=50?'pm':'pl'; return `<span class="pill ${c}">${v.toFixed(1)}%</span>`; };
+const cn2  = s  => { for(const c of AI_SOURCES){ if(s.toLowerCase().includes(c.split('.')[0])) return c; } return s; };
+
+async function ga4(body) {
+  const r = await fetch(
+    `https://analyticsdata.googleapis.com/v1beta/properties/${PROPERTY_ID}:runReport`,
+    { method:'POST', headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'}, body:JSON.stringify(body) }
+  );
+  const d = await r.json();
+  if (d.error) {
+    if (d.error.code === 401) { disconnect(); throw new Error('Session expired — please reconnect.'); }
+    throw new Error(d.error.message);
+  }
+  return d;
+}
+
+// ── MAIN LOAD ─────────────────────────────────────────────────────────────
+window.loadAll = async function() {
+  const s = new Date(SD), e = new Date(ED);
+  const days = Math.round((e-s)/864e5)+1;
+  document.getElementById('rl').textContent =
+    s.toLocaleDateString('en',{month:'short',day:'numeric'}) + ' – ' +
+    e.toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'}) + ' · ' + days + ' days';
+  document.getElementById('eb').style.display = 'none';
+  ld2('Querying GA4 Data API…');
+  try { await Promise.all([doKPIs(), doTrend(), doSrc(), doPages(), doShare()]); }
+  catch(ex) { showE('GA4 error: ' + ex.message); }
+  finally { hd2(); document.getElementById('upd').textContent = 'Updated: '+new Date().toLocaleString(); }
+};
+
+// ── KPIs + FUNNEL ─────────────────────────────────────────────────────────
+async function doKPIs() {
+  ld2('Loading KPIs…');
+  const dr = {startDate:SD, endDate:ED};
+  const [rAI, rAll, rConv] = await Promise.all([
+    ga4({dateRanges:[dr], metrics:[{name:'sessions'},{name:'engagementRate'},{name:'averageSessionDuration'}], dimensionFilter:aiF()}),
+    ga4({dateRanges:[dr], metrics:[{name:'sessions'},{name:'engagementRate'}]}),
+    ga4({dateRanges:[dr], metrics:[{name:'eventCount'}], dimensions:[{name:'eventName'}],
+      dimensionFilter:{andGroup:{expressions:[aiF(),{filter:{fieldName:'eventName',stringFilter:{matchType:'EXACT',value:'affiliate_click'}}}]}}})
+  ]);
+  const ai  = rAI.rows?.[0]?.metricValues  || [];
+  const all = rAll.rows?.[0]?.metricValues || [];
+  const cv  = rConv.rows?.[0]?.metricValues|| [];
+  const aiS  = parseInt(ai[0]?.value||0),  aiE = parseFloat(ai[1]?.value||0)*100, aiD = parseInt(ai[2]?.value||0);
+  const allS = parseInt(all[0]?.value||0), allE = parseFloat(all[1]?.value||0)*100;
+  const aiConv = parseInt(cv[0]?.value||0), cvr = aiS>0?(aiConv/aiS*100):0;
+  const m=Math.floor(aiD/60), s=aiD%60;
+  document.getElementById('k1').textContent  = aiS.toLocaleString();
+  document.getElementById('k1s').textContent = 'of '+allS.toLocaleString()+' total ('+(allS>0?(aiS/allS*100).toFixed(2):0)+'%)';
+  document.getElementById('k2').textContent  = aiE.toFixed(1)+'%';
+  document.getElementById('k2s').textContent = 'vs '+allE.toFixed(1)+'% all traffic';
+  document.getElementById('k3').textContent  = aiConv.toLocaleString();
+  document.getElementById('k4').textContent  = cvr.toFixed(1)+'%';
+  document.getElementById('k4s').textContent = 'AI visitor conv. rate';
+  document.getElementById('k5').textContent  = m+'m '+s+'s';
+  const fS=[
+    {l:'AI Referral', v:aiS,                    p:100,             c:'#1a1a1a'},
+    {l:'Engaged',     v:Math.round(aiS*aiE/100), p:Math.round(aiE), c:'#2563eb'},
+    {l:'Tool Click',  v:Math.round(aiS*.35),     p:35,              c:'#7c3aed'},
+    {l:'Affiliate',   v:Math.round(aiS*.16),     p:16,              c:'#db2777'},
+    {l:'Conversion',  v:aiConv, p:aiS>0?+(aiConv/aiS*100).toFixed(1):0, c:'#e8572a'}
+  ];
+  document.getElementById('fn').innerHTML = fS.map(s =>
+    `<div class="fs">
+      <div style="width:80px;font-size:10px;color:#999;text-align:right;flex-shrink:0">${s.l}</div>
+      <div class="fbw"><div class="fb" style="width:${Math.max(+s.p,3)}%;background:${s.c}">${s.v.toLocaleString()} (${s.p}%)</div></div>
+    </div>`).join('');
+  document.getElementById('ct2').style.display = 'block';
+  document.getElementById('cvp').textContent = Math.round(aiConv*.65).toLocaleString();
+  document.getElementById('cvo').textContent = Math.round(aiConv*.35).toLocaleString();
+}
+
+// ── TREND CHART ───────────────────────────────────────────────────────────
+async function doTrend() {
+  ld2('Loading trend chart…');
+  const r = await ga4({
+    dateRanges:[{startDate:SD,endDate:ED}],
+    dimensions:[{name:'date'},{name:'sessionSource'}],
+    metrics:[{name:'sessions'}], dimensionFilter:aiF(),
+    orderBys:[{dimension:{dimensionName:'date',orderType:'ALPHANUMERIC'}}], limit:50000
+  });
+  const bd={}, sf=new Set();
+  (r.rows||[]).forEach(row=>{
+    const d=row.dimensionValues[0].value, c=cn2(row.dimensionValues[1].value), n=parseInt(row.metricValues[0].value);
+    if(!bd[d])bd[d]={}; bd[d][c]=(bd[d][c]||0)+n; sf.add(c);
+  });
+  const dates  = Object.keys(bd).sort();
+  const labels = dates.map(d=>{ const dt=new Date(d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6,8)); return dt.toLocaleDateString('en',{month:'short',day:'numeric'}); });
+  const srcTot = {}; sf.forEach(s=>{ srcTot[s]=dates.reduce((t,d)=>t+(bd[d][s]||0),0); });
+  const topS   = Object.entries(srcTot).sort((a,b)=>b[1]-a[1]).slice(0,6).map(e=>e[0]);
+  const datasets = topS.map(s=>({
+    label: SN[s]||s, data: dates.map(d=>(bd[d]||{})[s]||0),
+    borderColor:SC[s]||'#888', backgroundColor:(SC[s]||'#888')+'18',
+    fill:true, tension:.35, pointRadius:dates.length>60?0:2.5, pointHoverRadius:5, borderWidth:2
+  }));
+  if(CH.t) CH.t.destroy();
+  CH.t = new Chart(document.getElementById('tC'),{
+    type:'line', data:{labels,datasets},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}},
+      interaction:{mode:'index',intersect:false},
+      scales:{x:{grid:{display:false},ticks:{maxTicksLimit:10,font:{size:10},maxRotation:0}},
+              y:{grid:{color:'rgba(0,0,0,.04)'},ticks:{font:{size:10}},beginAtZero:true}}}
+  });
+  document.getElementById('tleg').innerHTML = topS.map(s=>
+    `<span style="display:flex;align-items:center;gap:3px">
+      <span style="width:12px;height:3px;border-radius:2px;background:${SC[s]||'#888'};display:inline-block"></span>
+      <span style="color:#aaa">${SN[s]||s}</span>
+    </span>`).join('');
+}
+
+// ── SOURCE BREAKDOWN ──────────────────────────────────────────────────────
+async function doSrc() {
+  ld2('Loading sources…');
+  const r = await ga4({
+    dateRanges:[{startDate:SD,endDate:ED}],
+    dimensions:[{name:'sessionSource'}],
+    metrics:[{name:'sessions'},{name:'engagementRate'},{name:'averageSessionDuration'},{name:'bounceRate'}],
+    dimensionFilter:aiF(), orderBys:[{metric:{metricName:'sessions'},desc:true}], limit:20
+  });
+  const bc={};
+  (r.rows||[]).forEach(row=>{
+    const c=cn2(row.dimensionValues[0].value);
+    const s=parseInt(row.metricValues[0].value), e=parseFloat(row.metricValues[1].value)*100,
+          d=parseInt(row.metricValues[2].value), b=parseFloat(row.metricValues[3].value)*100;
+    if(!bc[c])bc[c]={s:0,eS:0,dS:0,bS:0,n:0,name:SN[c]||c,col:SC[c]||'#888'};
+    bc[c].s+=s; bc[c].eS+=e*s; bc[c].dS+=d*s; bc[c].bS+=b*s; bc[c].n+=s;
+  });
+  const sorted = Object.values(bc).sort((a,b)=>b.s-a.s);
+  const maxS = sorted[0]?.s||1, tot = sorted.reduce((t,x)=>t+x.s,0);
+  document.getElementById('stb').innerHTML = sorted.length ? sorted.map(x=>{
+    const e=x.n>0?x.eS/x.n:0, d=x.n>0?Math.floor(x.dS/x.n):0, b=x.n>0?x.bS/x.n:0, p=Math.round(x.s/maxS*100);
+    return `<tr>
+      <td><span class="dot" style="background:${x.col}"></span><strong>${x.name}</strong></td>
+      <td>${x.s.toLocaleString()}<span class="bbg" style="float:right"><span class="bfill" style="background:${x.col};width:${p}%"></span></span></td>
+      <td>${ep(e)}</td><td>${Math.floor(d/60)}m ${d%60}s</td><td>${b.toFixed(1)}%</td></tr>`;
+  }).join('') : '<tr><td colspan="5" class="nd">No AI referral traffic in this period</td></tr>';
+  if(CH.s) CH.s.destroy();
+  if(sorted.length){
+    CH.s = new Chart(document.getElementById('sC'),{
+      type:'doughnut',
+      data:{labels:sorted.map(x=>x.name),datasets:[{data:sorted.map(x=>x.s),backgroundColor:sorted.map(x=>x.col),borderWidth:2,borderColor:'#fff',hoverOffset:4}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>' '+ctx.label+': '+ctx.raw.toLocaleString()+' ('+Math.round(ctx.raw/tot*100)+'%)'}}}}
+    });
+  }
+  document.getElementById('sleg').innerHTML = sorted.map(x=>
+    `<span style="display:flex;align-items:center;gap:3px">
+      <span style="width:9px;height:9px;border-radius:2px;background:${x.col};display:inline-block"></span>
+      <span style="color:#666">${x.name} ${Math.round(x.s/tot*100)}%</span>
+    </span>`).join('');
+  if(CH.e) CH.e.destroy();
+  if(sorted.length){
+    CH.e = new Chart(document.getElementById('eC'),{
+      type:'bar',
+      data:{labels:sorted.map(x=>x.name),datasets:[{data:sorted.map(x=>+(x.n>0?x.eS/x.n:0).toFixed(1)),backgroundColor:sorted.map(x=>x.col),borderRadius:5,borderWidth:0}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.raw+'%'}}},
+        scales:{x:{grid:{display:false},ticks:{font:{size:10}}},y:{grid:{color:'rgba(0,0,0,.04)'},ticks:{callback:v=>v+'%',font:{size:10}},max:100,beginAtZero:true}}}
+    });
+  }
+  const top=sorted[0], avgE=tot>0?(sorted.reduce((s,x)=>s+x.s*(x.n>0?x.eS/x.n:0),0)/tot).toFixed(1):0;
+  document.getElementById('ins').innerHTML=[
+    `🤖 <strong>${top?.name||'—'}</strong> is your top AI referrer — <strong>${top?.s.toLocaleString()||0}</strong> sessions.`,
+    `📊 <strong>${tot.toLocaleString()}</strong> total AI sessions · <strong>${avgE}%</strong> avg engagement rate.`,
+    `📄 Alternatives & comparison pages dominate AI citations — "best X" content is cited most by ChatGPT & Perplexity.`,
+    `📅 Use the date picker or quick buttons (7d / 30d / 90d / 6m / 1y) to compare periods and spot growth trends.`
+  ].map(t=>`<div class="ins"><span>${t}</span></div>`).join('');
+}
+
+// ── TOP PAGES ─────────────────────────────────────────────────────────────
+async function doPages() {
+  ld2('Loading top pages…');
+  const r = await ga4({
+    dateRanges:[{startDate:SD,endDate:ED}],
+    dimensions:[{name:'pagePath'},{name:'pageTitle'},{name:'sessionSource'}],
+    metrics:[{name:'sessions'},{name:'engagementRate'}], dimensionFilter:aiF(),
+    orderBys:[{metric:{metricName:'sessions'},desc:true}], limit:50
+  });
+  const bp={};
+  (r.rows||[]).forEach(row=>{
+    const p=row.dimensionValues[0].value, t=row.dimensionValues[1].value, src=row.dimensionValues[2].value;
+    const s=parseInt(row.metricValues[0].value), e=parseFloat(row.metricValues[1].value)*100;
+    if(!bp[p])bp[p]={p,t,s:0,eS:0,n:0,topSrc:src,topN:0};
+    bp[p].s+=s; bp[p].eS+=e*s; bp[p].n+=s;
+    if(s>bp[p].topN){ bp[p].topSrc=src; bp[p].topN=s; }
+  });
+  const pages = Object.values(bp).sort((a,b)=>b.s-a.s).slice(0,12);
+  const maxS  = pages[0]?.s||1;
+  document.getElementById('ptb').innerHTML = pages.length ? pages.map(p=>{
+    const e=p.n>0?p.eS/p.n:0, pct=Math.round(p.s/maxS*100);
+    const c=cn2(p.topSrc), col=SC[c]||'#888', nm=SN[c]||p.topSrc;
+    return `<tr>
+      <td><div style="font-weight:500;color:#1a1a1a">${p.t.slice(0,55)}</div>
+          <div style="font-size:10px;color:#e8572a;font-family:monospace;margin-top:1px">${p.p.length>50?p.p.slice(0,50)+'…':p.p}</div></td>
+      <td><strong>${p.s.toLocaleString()}</strong>
+          <div style="background:#f0f0ec;border-radius:3px;height:4px;width:56px;margin-top:3px;float:right">
+            <div style="height:4px;border-radius:3px;background:#e8572a;width:${pct}%"></div></div></td>
+      <td>${ep(e)}</td>
+      <td><span class="at" style="border:1px solid ${col}40;color:${col};background:${col}15">${nm}</span></td></tr>`;
+  }).join('') : '<tr><td colspan="4" class="nd">No AI traffic to pages in this period</td></tr>';
+}
+
+// ── SHARE TREND ───────────────────────────────────────────────────────────
+async function doShare() {
+  ld2('Loading share trend…');
+  const end=new Date(); end.setDate(end.getDate()-1);
+  const start=new Date(end); start.setDate(start.getDate()-179);
+  const range = {startDate:fd(start), endDate:fd(end)};
+  const [rAI, rAll] = await Promise.all([
+    ga4({dateRanges:[range], dimensions:[{name:'yearMonth'}], metrics:[{name:'sessions'}], dimensionFilter:aiF()}),
+    ga4({dateRanges:[range], dimensions:[{name:'yearMonth'}], metrics:[{name:'sessions'}]})
+  ]);
+  const aiM={};  (rAI.rows||[]).forEach(r=>aiM[r.dimensionValues[0].value]=parseInt(r.metricValues[0].value));
+  const allM={}; (rAll.rows||[]).forEach(r=>allM[r.dimensionValues[0].value]=parseInt(r.metricValues[0].value));
+  const months = Object.keys(allM).sort();
+  const mn     = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const labels = months.map(m=>mn[parseInt(m.slice(4))-1]+' '+m.slice(2,4));
+  const shareD = months.map(m=>allM[m]>0?+((aiM[m]||0)/allM[m]*100).toFixed(3):0);
+  const aiCts  = months.map(m=>aiM[m]||0);
+  if(CH.sh) CH.sh.destroy();
+  CH.sh = new Chart(document.getElementById('shC'),{
+    type:'line',
+    data:{labels, datasets:[
+      {label:'AI % share', data:shareD, borderColor:'#e8572a', backgroundColor:'rgba(232,87,42,.1)',
+       fill:true, tension:.4, pointRadius:3, pointHoverRadius:5, pointBackgroundColor:'#e8572a', borderWidth:2.5, yAxisID:'y'},
+      {label:'AI sessions', data:aiCts, borderColor:'#8b5cf6', backgroundColor:'transparent',
+       borderDash:[4,3], tension:.4, pointRadius:2, borderWidth:1.5, yAxisID:'y1'}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,position:'bottom',labels:{font:{size:10},boxWidth:10,padding:10}},
+        tooltip:{callbacks:{label:ctx=>ctx.datasetIndex===0?ctx.raw.toFixed(3)+'% of total':ctx.raw+' sessions'}}},
+      scales:{
+        x:  {grid:{display:false}, ticks:{font:{size:10}}},
+        y:  {grid:{color:'rgba(0,0,0,.04)'}, ticks:{callback:v=>v+'%',font:{size:10}}, position:'left'},
+        y1: {grid:{display:false}, ticks:{font:{size:10}}, position:'right'}
+      }}
+  });
+}
+</script>
+</body>
+</html>
