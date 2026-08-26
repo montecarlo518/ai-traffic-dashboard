@@ -167,7 +167,7 @@ tr:last-child td{border-bottom:none}
     <div class="kg">
       <div class="kpi" style="--a:#e8572a"><div class="kl">AI Sessions</div><div class="kv" id="k1">…</div><div class="ks" id="k1s"></div></div>
       <div class="kpi" style="--a:#0ea5e9"><div class="kl">Engagement Rate</div><div class="kv" id="k2">…</div><div class="ks" id="k2s"></div></div>
-      <div class="kpi" style="--a:#8b5cf6"><div class="kl">AI Conversions</div><div class="kv" id="k3">…</div><div class="ks">affiliate_click events</div></div>
+      <div class="kpi" style="--a:#8b5cf6"><div class="kl">Outbound Clicks</div><div class="kv" id="k3">…</div><div class="ks">affiliate_click events</div></div>
       <div class="kpi" style="--a:#16a34a"><div class="kl">Conv. Rate</div><div class="kv" id="k4">…</div><div class="ks" id="k4s"></div></div>
       <div class="kpi" style="--a:#f59e0b"><div class="kl">Avg. Duration</div><div class="kv" id="k5">…</div><div class="ks">AI visitors</div></div>
     </div>
@@ -200,10 +200,8 @@ tr:last-child td{border-bottom:none}
         <div class="chd"><div><div class="ct">Conversion Funnel</div><div class="cs">AI segment end-to-end</div></div></div>
         <div class="cb">
           <div id="fn"><div class="nd">Loading…</div></div>
-          <div id="ct2" style="margin-top:13px;padding-top:13px;border-top:1px solid #f0f0ec;display:none">
-            <div style="font-size:10px;color:#999;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:7px">By type</div>
-            <div class="tr2"><span style="font-size:11px">🛒 affiliate_click (purchase)</span><span id="cvp" style="font-size:11px;color:#888">—</span></div>
-            <div class="tr2"><span style="font-size:11px">🖱️ affiliate_click (other)</span><span id="cvo" style="font-size:11px;color:#888">—</span></div>
+          <div style="margin-top:13px;padding-top:13px;border-top:1px solid #f0f0ec;font-size:11px;color:#aaa;line-height:1.5">
+            affiliate_click = any outbound affiliate link click.<br>Not all clicks result in a signup — actual conversion rate is tracked by your affiliate network.
           </div>
         </div>
       </div>
@@ -359,22 +357,22 @@ async function doKPIs(){
   document.getElementById('k2s').textContent='vs '+allE.toFixed(1)+'% all traffic';
   document.getElementById('k3').textContent=aiConv.toLocaleString();
   document.getElementById('k4').textContent=cvr.toFixed(1)+'%';
-  document.getElementById('k4s').textContent='AI visitor conv. rate';
+  document.getElementById('k4s').textContent='clicks per AI session';
   document.getElementById('k5').textContent=m+'m '+s+'s';
+  // Funnel: only show steps we have real data for.
+  // Tool Click and Affiliate steps removed — those were hardcoded fake percentages.
+  // affiliate_click = outbound link clicks, not purchases. Label accordingly.
+  var clickPct = aiS>0?parseFloat((aiConv/aiS*100).toFixed(1)):0;
   var fS=[
-    {l:'AI Referral',v:aiS,p:100,c:'#1a1a1a'},
-    {l:'Engaged',v:Math.round(aiS*aiE/100),p:Math.round(aiE),c:'#2563eb'},
-    {l:'Tool Click',v:Math.round(aiS*.35),p:35,c:'#7c3aed'},
-    {l:'Affiliate',v:Math.round(aiS*.16),p:16,c:'#db2777'},
-    {l:'Conversion',v:aiConv,p:aiS>0?parseFloat((aiConv/aiS*100).toFixed(1)):0,c:'#e8572a'}
+    {l:'AI Sessions',  v:aiS,                    p:100,             c:'#1a1a1a'},
+    {l:'Engaged',      v:Math.round(aiS*aiE/100), p:Math.round(aiE), c:'#2563eb'},
+    {l:'Outbound Clicks', v:aiConv,               p:clickPct,        c:'#e8572a'}
   ];
   document.getElementById('fn').innerHTML=fS.map(function(s){
     return '<div class="fs"><div style="width:80px;font-size:10px;color:#999;text-align:right;flex-shrink:0">'+s.l+'</div>'
       +'<div class="fbw"><div class="fb" style="width:'+Math.max(+s.p,3)+'%;background:'+s.c+'">'+s.v.toLocaleString()+' ('+s.p+'%)</div></div></div>';
   }).join('');
-  document.getElementById('ct2').style.display='block';
-  document.getElementById('cvp').textContent=Math.round(aiConv*.65).toLocaleString();
-  document.getElementById('cvo').textContent=Math.round(aiConv*.35).toLocaleString();
+
 }
 
 // ── TREND CHART ───────────────────────────────────────────────────────────
