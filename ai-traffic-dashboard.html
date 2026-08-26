@@ -156,10 +156,10 @@ tr:last-child td{border-bottom:none}
         <div id="srcFilters" style="display:flex;gap:4px;flex-wrap:wrap">
           <button class="sfb act" data-src="" onclick="setSrcFilter('',this)">All AI</button>
           <button class="sfb" data-src="chatgpt\.com" onclick="setSrcFilter('chatgpt\\.com',this)" style="--sc:#10a37f">ChatGPT</button>
-          <button class="sfb" data-src="perplexity\.ai" onclick="setSrcFilter('perplexity\\.ai',this)" style="--sc:#8b5cf6">Perplexity</button>
+          <button class="sfb" data-src="perplexity\.ai" onclick="setSrcFilter('perplexity',this)" style="--sc:#8b5cf6">Perplexity</button>
           <button class="sfb" data-src="claude\.ai" onclick="setSrcFilter('claude\\.ai',this)" style="--sc:#0ea5e9">Claude</button>
           <button class="sfb" data-src="gemini\.google\.com" onclick="setSrcFilter('gemini\\.google\\.com',this)" style="--sc:#f59e0b">Gemini</button>
-          <button class="sfb" data-src="copilot\.microsoft|edgeservices\.bing" onclick="setSrcFilter('copilot\\.microsoft|edgeservices\\.bing',this)" style="--sc:#0078d4">Copilot</button>
+          <button class="sfb" data-src="copilot\.microsoft|edgeservices\.bing" onclick="setSrcFilter('copilot',this)" style="--sc:#0078d4">Copilot</button>
           <button class="sfb" data-src="perplexity\.ai|you\.com|phind\.com" onclick="setSrcFilter('perplexity\\.ai|you\\.com|phind\\.com',this)" style="--sc:#64748b">Other</button>
         </div>
       </div>
@@ -229,9 +229,9 @@ tr:last-child td{border-bottom:none}
 var CLIENT_ID   = '382687108215-hglpgu3spfp3ls4qlu1j6emdnbn54hfg.apps.googleusercontent.com';
 var REDIRECT_URI = window.location.href.split('#')[0].split('?')[0];
 var PROPERTY_ID = '521141931';
-var AI_SOURCES  = ['chatgpt.com','perplexity.ai','claude.ai','gemini.google.com','copilot.microsoft.com','edgeservices.bing.com','you.com','phind.com'];
-var SC = {'chatgpt.com':'#10a37f','perplexity.ai':'#8b5cf6','claude.ai':'#0ea5e9','gemini.google.com':'#f59e0b','copilot.microsoft.com':'#0078d4','edgeservices.bing.com':'#0078d4','you.com':'#e8572a','phind.com':'#db2777'};
-var SN = {'chatgpt.com':'ChatGPT','perplexity.ai':'Perplexity','claude.ai':'Claude','gemini.google.com':'Gemini','copilot.microsoft.com':'Copilot','edgeservices.bing.com':'Copilot','you.com':'You.com','phind.com':'Phind'};
+var AI_SOURCES  = ['chatgpt.com','perplexity.ai','perplexity','claude.ai','gemini.google.com','copilot.com','copilot.microsoft.com','you.com','phind.com'];
+var SC = {'chatgpt.com':'#10a37f','perplexity.ai':'#8b5cf6','perplexity':'#8b5cf6','claude.ai':'#0ea5e9','gemini.google.com':'#f59e0b','copilot.com':'#0078d4','copilot.microsoft.com':'#0078d4','you.com':'#e8572a','phind.com':'#db2777'};
+var SN = {'chatgpt.com':'ChatGPT','perplexity.ai':'Perplexity','perplexity':'Perplexity','claude.ai':'Claude','gemini.google.com':'Gemini','copilot.com':'Copilot','copilot.microsoft.com':'Copilot','you.com':'You.com','phind.com':'Phind'};
 
 // ── STATE ─────────────────────────────────────────────────────────────────
 var TOKEN = null;
@@ -248,16 +248,22 @@ function showLd(t){document.getElementById('ld').style.display='flex';document.g
 function hideLd(){document.getElementById('ld').style.display='none';}
 function showErr(m){document.getElementById('em').textContent=m;document.getElementById('eb').style.display='flex';}
 function aiF(sourceFilter){
-  // Filter by AI assistant source domain only.
-  // No medium filter: ChatGPT/Claude etc. can arrive as referral OR (none) depending on GA4 classification.
-  // Bing organic is naturally excluded because 'bing' alone doesn't match any of these full domains.
-  if(sourceFilter){
-    return{filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',value:sourceFilter}}};
-  }
-  return{filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',
-    value:'chatgpt\\.com|perplexity\\.ai|claude\\.ai|gemini\\.google\\.com|copilot\\.microsoft|edgeservices\\.bing|you\\.com|phind\\.com'}}};}
+  // Catch all GA4 AI traffic — sources arrive with different mediums:
+  //   chatgpt.com / ai-assistant (507 sessions) — main bucket
+  //   chatgpt.com / (not set) or referral — smaller buckets
+  //   perplexity (no .ai) / (not set)
+  //   copilot.com (not copilot.microsoft.com) / ai-assistant
+  //   claude.ai / referral
+  // Strategy: match by source domain OR by medium=ai-assistant (catches future AI sources too)
+  var srcRegex = sourceFilter
+    ? sourceFilter
+    : 'chatgpt\\.com|perplexity|claude\\.ai|gemini\\.google|copilot|you\\.com|phind\\.com';
+  return{orGroup:{expressions:[
+    {filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',value:srcRegex}}},
+    {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'ai-assistant'}}}
+  ]}};}
 function ep(v){var c=v>=65?'ph':v>=50?'pm':'pl';return'<span class="pill '+c+'">'+v.toFixed(1)+'%</span>';}
-function cn(s){var sl=s.toLowerCase();if(sl.indexOf('edgeservices.bing')>=0||sl.indexOf('copilot.microsoft')>=0)return'copilot.microsoft.com';for(var i=0;i<AI_SOURCES.length;i++){if(sl.indexOf(AI_SOURCES[i].split('.')[0])>=0)return AI_SOURCES[i];}return s;}
+function cn(s){var sl=s.toLowerCase();if(sl==='perplexity')return'perplexity.ai';if(sl==='copilot.com'||sl.indexOf('copilot.microsoft')>=0)return'copilot.com';for(var i=0;i<AI_SOURCES.length;i++){if(sl.indexOf(AI_SOURCES[i].split('.')[0])>=0&&AI_SOURCES[i].split('.')[0].length>3)return AI_SOURCES[i];}return s;}
 
 async function ga4(body){
   var r = await fetch('https://analyticsdata.googleapis.com/v1beta/properties/'+PROPERTY_ID+':runReport',
