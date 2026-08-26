@@ -195,7 +195,7 @@ tr:last-child td{border-bottom:none}
     <div class="r3">
       <div class="card" style="grid-column:span 2">
         <div class="chd"><div><div class="ct">Top Pages — AI Referrals</div><div class="cs">Ranked by AI sessions</div></div></div>
-        <div class="cb"><table><thead><tr><th>Page</th><th>AI Sessions</th><th>Eng. Rate</th><th>Top AI Source</th></tr></thead><tbody id="ptb"><tr><td colspan="4" class="nd">Loading…</td></tr></tbody></table></div>
+        <div class="cb"><table><thead><tr><th>Page</th><th>AI Sessions</th><th>Eng. Rate</th><th>Outbound Clicks</th><th>Click Rate</th><th>Top AI Source</th></tr></thead><tbody id="ptb"><tr><td colspan="4" class="nd">Loading…</td></tr></tbody></table></div>
       </div>
       <div class="card">
         <div class="chd"><div><div class="ct">Conversion Funnel</div><div class="cs">AI segment end-to-end</div></div></div>
@@ -565,12 +565,30 @@ async function doSrc(){
 // ── TOP PAGES ─────────────────────────────────────────────────────────────
 async function doPages(){
   showLd('Loading top pages…');
-  var r=await ga4({dateRanges:[{startDate:SD,endDate:ED}],
-    dimensions:[{name:'pagePath'},{name:'pageTitle'},{name:'sessionSource'}],
-    metrics:[{name:'sessions'},{name:'engagementRate'}],dimensionFilter:aiF(ACTIVE_SRC_FILTER),
-    orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:50});
+  // Two queries: sessions+engagement for all AI pages, clicks separately
+  var res = await Promise.all([
+    ga4({dateRanges:[{startDate:SD,endDate:ED}],
+      dimensions:[{name:'pagePath'},{name:'pageTitle'},{name:'sessionSource'}],
+      metrics:[{name:'sessions'},{name:'engagementRate'}],
+      dimensionFilter:aiF(ACTIVE_SRC_FILTER),
+      orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:50}),
+    ga4({dateRanges:[{startDate:SD,endDate:ED}],
+      dimensions:[{name:'pagePath'}],
+      metrics:[{name:'eventCount'}],
+      dimensionFilter:{andGroup:{expressions:[
+        aiF(ACTIVE_SRC_FILTER),
+        {filter:{fieldName:'eventName',stringFilter:{matchType:'EXACT',value:'affiliate_click'}}}
+      ]}},
+      orderBys:[{metric:{metricName:'eventCount'},desc:true}],limit:50})
+  ]);
+  // Build clicks lookup by page path
+  var clicks={};
+  (res[1].rows||[]).forEach(function(row){
+    clicks[row.dimensionValues[0].value]=parseInt(row.metricValues[0].value);
+  });
+  // Aggregate sessions+eng by page
   var bp={};
-  (r.rows||[]).forEach(function(row){
+  (res[0].rows||[]).forEach(function(row){
     var p=row.dimensionValues[0].value,t=row.dimensionValues[1].value,src=row.dimensionValues[2].value;
     var s=parseInt(row.metricValues[0].value),e=parseFloat(row.metricValues[1].value)*100;
     if(!bp[p])bp[p]={p:p,t:t,s:0,eS:0,n:0,topSrc:src,topN:0};
@@ -582,14 +600,17 @@ async function doPages(){
   document.getElementById('ptb').innerHTML=pages.length?pages.map(function(p){
     var e=p.n>0?p.eS/p.n:0,pct=Math.round(p.s/maxS*100);
     var c=cn(p.topSrc),col=SC[c]||'#888',nm=SN[c]||p.topSrc;
+    var cl=clicks[p.p]||0,cr=p.s>0?(cl/p.s*100):0;
     return'<tr><td><div style="font-weight:500;color:#1a1a1a">'+p.t.slice(0,55)+'</div>'
       +'<div style="font-size:10px;color:#e8572a;font-family:monospace;margin-top:1px">'+(p.p.length>50?p.p.slice(0,50)+'…':p.p)+'</div></td>'
       +'<td><strong>'+p.s.toLocaleString()+'</strong>'
       +'<div style="background:#f0f0ec;border-radius:3px;height:4px;width:56px;margin-top:3px;float:right">'
       +'<div style="height:4px;border-radius:3px;background:#e8572a;width:'+pct+'%"></div></div></td>'
       +'<td>'+ep(e)+'</td>'
+      +'<td style="font-variant-numeric:tabular-nums">'+cl.toLocaleString()+'</td>'
+      +'<td><span class="pill '+(cr>=5?'ph':cr>=2?'pm':'pl')+'">'+cr.toFixed(1)+'%</span></td>'
       +'<td><span class="at" style="border:1px solid '+col+'40;color:'+col+';background:'+col+'15">'+nm+'</span></td></tr>';
-  }).join(''):'<tr><td colspan="4" class="nd">No AI traffic to pages in this period</td></tr>';
+  }).join(''):'<tr><td colspan="6" class="nd">No AI traffic to pages in this period</td></tr>';
 }
 
 // ── SHARE TREND ───────────────────────────────────────────────────────────
