@@ -191,9 +191,10 @@ tr:last-child td{border-bottom:none}
       <div class="chd"><div><div class="ct">AI Source Performance</div><div class="cs">Sessions · Engagement · Duration · Bounce</div></div></div>
       <div class="cb"><table><thead><tr><th>AI Referrer</th><th>Sessions</th><th>Eng. Rate</th><th>Avg. Duration</th><th>Bounce %</th></tr></thead><tbody id="stb"><tr><td colspan="5" class="nd">Loading…</td></tr></tbody></table></div>
     </div>
+    <div class="sec" style="margin-top:4px">Traffic by AI Source</div>
     <div class="r3">
       <div class="card" style="grid-column:span 2">
-        <div class="chd"><div><div class="ct">Top Pages Receiving AI Traffic</div><div class="cs">Ranked by AI sessions</div></div></div>
+        <div class="chd"><div><div class="ct">Top Pages — AI Referrals</div><div class="cs">Ranked by AI sessions</div></div></div>
         <div class="cb"><table><thead><tr><th>Page</th><th>AI Sessions</th><th>Eng. Rate</th><th>Top AI Source</th></tr></thead><tbody id="ptb"><tr><td colspan="4" class="nd">Loading…</td></tr></tbody></table></div>
       </div>
       <div class="card">
@@ -216,6 +217,43 @@ tr:last-child td{border-bottom:none}
         <div class="cb"><div style="position:relative;height:210px"><canvas id="shC"></canvas></div></div>
       </div>
     </div>
+    <div class="sec" style="margin-top:4px">Traffic by Search Engine</div>
+    <!-- ── BING TOP PAGES ── -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="chd">
+        <div>
+          <div class="ct" style="display:flex;align-items:center;gap:8px">
+            <span style="width:10px;height:10px;border-radius:50%;background:#0078d4;display:inline-block;flex-shrink:0"></span>
+            Top Pages — Bing Organic
+          </div>
+          <div class="cs">Sessions · Engagement · Outbound clicks from bing / organic</div>
+        </div>
+        <div id="bingTotal" style="font-size:11px;color:#aaa;margin-top:2px"></div>
+      </div>
+      <div class="cb">
+        <table><thead><tr><th>Page</th><th>Sessions</th><th>Eng. Rate</th><th>Outbound Clicks</th><th>Click Rate</th></tr></thead>
+        <tbody id="bingTb"><tr><td colspan="5" class="nd">Loading…</td></tr></tbody></table>
+      </div>
+    </div>
+
+    <!-- ── DDG TOP PAGES ── -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="chd">
+        <div>
+          <div class="ct" style="display:flex;align-items:center;gap:8px">
+            <span style="width:10px;height:10px;border-radius:50%;background:#de5833;display:inline-block;flex-shrink:0"></span>
+            Top Pages — DuckDuckGo Organic
+          </div>
+          <div class="cs">Sessions · Engagement · Outbound clicks from duckduckgo / organic</div>
+        </div>
+        <div id="ddgTotal" style="font-size:11px;color:#aaa;margin-top:2px"></div>
+      </div>
+      <div class="cb">
+        <table><thead><tr><th>Page</th><th>Sessions</th><th>Eng. Rate</th><th>Outbound Clicks</th><th>Click Rate</th></tr></thead>
+        <tbody id="ddgTb"><tr><td colspan="5" class="nd">Loading…</td></tr></tbody></table>
+      </div>
+    </div>
+
     <div class="sec">Key Insights</div>
     <div class="ig" id="ins"></div>
     <div class="foot">AI Traffic Dashboard · x-chatbots.com · GA4 p521141931 · <span id="upd">—</span></div>
@@ -322,6 +360,62 @@ function setQ(days,btn){
 }
 
 // ── MAIN LOAD ─────────────────────────────────────────────────────────────
+// ── SEARCH ENGINE PAGES ──────────────────────────────────────────────────
+function searchPageFilter(source){
+  return{andGroup:{expressions:[
+    {filter:{fieldName:'sessionSource',stringFilter:{matchType:'EXACT',value:source}}},
+    {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'organic'}}}
+  ]}};
+}
+
+async function doSearchPages(source, tbodyId, totalId, accentColor){
+  var r = await ga4({
+    dateRanges:[{startDate:SD,endDate:ED}],
+    dimensions:[{name:'pagePath'},{name:'pageTitle'}],
+    metrics:[{name:'sessions'},{name:'engagementRate'},{name:'eventCount'}],
+    dimensionFilter:{andGroup:{expressions:[
+      searchPageFilter(source),
+      {filter:{fieldName:'eventName',stringFilter:{matchType:'EXACT',value:'affiliate_click'}}}
+    ]}},
+    orderBys:[{metric:{metricName:'sessions'},desc:true}],
+    limit:12
+  });
+  // Also get sessions+eng without event filter (eventCount filter removes pages with 0 clicks)
+  var r2 = await ga4({
+    dateRanges:[{startDate:SD,endDate:ED}],
+    dimensions:[{name:'pagePath'},{name:'pageTitle'}],
+    metrics:[{name:'sessions'},{name:'engagementRate'}],
+    dimensionFilter:searchPageFilter(source),
+    orderBys:[{metric:{metricName:'sessions'},desc:true}],
+    limit:12
+  });
+  // Merge: use r2 for sessions+eng (all pages), r for click counts
+  var clicks={};
+  (r.rows||[]).forEach(function(row){
+    clicks[row.dimensionValues[0].value]=parseInt(row.metricValues[2].value);
+  });
+  var pages=(r2.rows||[]);
+  var totalS=pages.reduce(function(t,p){return t+parseInt(p.metricValues[0].value);},0);
+  var maxS=pages[0]?parseInt(pages[0].metricValues[0].value):1;
+  document.getElementById(totalId).textContent=totalS.toLocaleString()+' total sessions';
+  document.getElementById(tbodyId).innerHTML=pages.length?pages.map(function(p){
+    var path=p.dimensionValues[0].value,title=p.dimensionValues[1].value;
+    var s=parseInt(p.metricValues[0].value),e=parseFloat(p.metricValues[1].value)*100;
+    var c=clicks[path]||0,cr=s>0?(c/s*100):0,pct=Math.round(s/maxS*100);
+    var ecls=e>=65?'ph':e>=50?'pm':'pl';
+    return'<tr>'
+      +'<td><div style="font-weight:500;color:#1a1a1a">'+title.slice(0,55)+'</div>'
+      +'<div style="font-size:10px;color:'+accentColor+';font-family:monospace;margin-top:1px">'+(path.length>50?path.slice(0,50)+'…':path)+'</div></td>'
+      +'<td><strong>'+s.toLocaleString()+'</strong>'
+      +'<div style="background:#f0f0ec;border-radius:3px;height:4px;width:56px;margin-top:3px;float:right">'
+      +'<div style="height:4px;border-radius:3px;background:'+accentColor+';width:'+pct+'%"></div></div></td>'
+      +'<td><span class="pill '+ecls+'">'+e.toFixed(1)+'%</span></td>'
+      +'<td style="font-variant-numeric:tabular-nums">'+c.toLocaleString()+'</td>'
+      +'<td><span class="pill '+(cr>=5?'ph':cr>=2?'pm':'pl')+'">'+cr.toFixed(1)+'%</span></td>'
+      +'</tr>';
+  }).join(''):'<tr><td colspan="5" class="nd">No traffic in this period</td></tr>';
+}
+
 async function loadAll(){
   var s=new Date(SD),e=new Date(ED),days=Math.round((e-s)/864e5)+1;
   document.getElementById('rl').textContent=
@@ -329,7 +423,7 @@ async function loadAll(){
     e.toLocaleDateString('en',{month:'short',day:'numeric',year:'numeric'})+' · '+days+' days';
   document.getElementById('eb').style.display='none';
   showLd('Querying GA4 Data API…');
-  try{await Promise.all([doKPIs(),doTrend(),doSrc(),doPages(),doShare()]);}
+  try{await Promise.all([doKPIs(),doTrend(),doSrc(),doPages(),doShare(),doSearchPages('bing','bingTb','bingTotal','#0078d4'),doSearchPages('duckduckgo','ddgTb','ddgTotal','#de5833')]);}
   catch(ex){showErr('GA4 error: '+ex.message);}
   finally{hideLd();document.getElementById('upd').textContent='Updated: '+new Date().toLocaleString();}
 }
