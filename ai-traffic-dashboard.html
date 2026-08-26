@@ -83,6 +83,9 @@ tr:last-child td{border-bottom:none}
 .ins{background:#fff;border:1px solid #e8e8e4;border-radius:8px;padding:9px 12px;font-size:12px;color:#555;display:flex;gap:7px;flex:1;min-width:180px;line-height:1.5}
 .foot{text-align:center;padding:18px;color:#ccc;font-size:11px;border-top:1px solid #e8e8e4}
 .nd{text-align:center;color:#ccc;padding:18px;font-size:12px}
+.sfb{background:#fff;border:1px solid #e0e0dc;color:#666;font-size:11px;font-weight:500;padding:4px 10px;border-radius:20px;cursor:pointer;transition:all .12s;white-space:nowrap}
+.sfb:hover{border-color:var(--sc,#e8572a);color:var(--sc,#e8572a)}
+.sfb.act{background:var(--sc,#1a1a1a);border-color:var(--sc,#1a1a1a);color:#fff}
 @media(max-width:900px){.kg{grid-template-columns:repeat(2,1fr)}.r2,.r3{grid-template-columns:1fr}}
 </style>
 </head>
@@ -146,7 +149,21 @@ tr:last-child td{border-bottom:none}
 <div class="dash" id="dash">
   <div class="con">
     <div class="eb" id="eb"><span id="em"></span><button onclick="this.parentElement.style.display='none'">×</button></div>
-    <div class="sec">AI Overview <span id="rl" style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:#bbb"></span><span class="ltag">Live</span></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;flex-wrap:wrap;gap:8px">
+      <div class="sec" style="margin-bottom:0">AI Overview <span id="rl" style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:#bbb"></span><span class="ltag">Live</span></div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <span style="font-size:10px;color:#999;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Source:</span>
+        <div id="srcFilters" style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="sfb act" data-src="" onclick="setSrcFilter('',this)">All AI</button>
+          <button class="sfb" data-src="chatgpt\.com" onclick="setSrcFilter('chatgpt\\.com',this)" style="--sc:#10a37f">ChatGPT</button>
+          <button class="sfb" data-src="perplexity\.ai" onclick="setSrcFilter('perplexity\\.ai',this)" style="--sc:#8b5cf6">Perplexity</button>
+          <button class="sfb" data-src="claude\.ai" onclick="setSrcFilter('claude\\.ai',this)" style="--sc:#0ea5e9">Claude</button>
+          <button class="sfb" data-src="gemini\.google\.com" onclick="setSrcFilter('gemini\\.google\\.com',this)" style="--sc:#f59e0b">Gemini</button>
+          <button class="sfb" data-src="copilot\.microsoft|edgeservices\.bing" onclick="setSrcFilter('copilot\\.microsoft|edgeservices\\.bing',this)" style="--sc:#0078d4">Copilot</button>
+          <button class="sfb" data-src="perplexity\.ai|you\.com|phind\.com" onclick="setSrcFilter('perplexity\\.ai|you\\.com|phind\\.com',this)" style="--sc:#64748b">Other</button>
+        </div>
+      </div>
+    </div>
     <div class="kg">
       <div class="kpi" style="--a:#e8572a"><div class="kl">AI Sessions</div><div class="kv" id="k1">…</div><div class="ks" id="k1s"></div></div>
       <div class="kpi" style="--a:#0ea5e9"><div class="kl">Engagement Rate</div><div class="kv" id="k2">…</div><div class="ks" id="k2s"></div></div>
@@ -212,12 +229,13 @@ tr:last-child td{border-bottom:none}
 var CLIENT_ID   = '382687108215-hglpgu3spfp3ls4qlu1j6emdnbn54hfg.apps.googleusercontent.com';
 var REDIRECT_URI = window.location.href.split('#')[0].split('?')[0];
 var PROPERTY_ID = '521141931';
-var AI_SOURCES  = ['chatgpt.com','perplexity.ai','claude.ai','gemini.google.com','copilot.microsoft.com','bing.com','msn.com','you.com','phind.com'];
-var SC = {'chatgpt.com':'#10a37f','perplexity.ai':'#8b5cf6','claude.ai':'#0ea5e9','gemini.google.com':'#f59e0b','copilot.microsoft.com':'#0078d4','bing.com':'#0078d4','msn.com':'#0078d4','you.com':'#e8572a','phind.com':'#db2777'};
-var SN = {'chatgpt.com':'ChatGPT','perplexity.ai':'Perplexity','claude.ai':'Claude','gemini.google.com':'Gemini','copilot.microsoft.com':'Copilot','bing.com':'Bing/Copilot','msn.com':'MSN/Copilot','you.com':'You.com','phind.com':'Phind'};
+var AI_SOURCES  = ['chatgpt.com','perplexity.ai','claude.ai','gemini.google.com','copilot.microsoft.com','edgeservices.bing.com','you.com','phind.com'];
+var SC = {'chatgpt.com':'#10a37f','perplexity.ai':'#8b5cf6','claude.ai':'#0ea5e9','gemini.google.com':'#f59e0b','copilot.microsoft.com':'#0078d4','edgeservices.bing.com':'#0078d4','you.com':'#e8572a','phind.com':'#db2777'};
+var SN = {'chatgpt.com':'ChatGPT','perplexity.ai':'Perplexity','claude.ai':'Claude','gemini.google.com':'Gemini','copilot.microsoft.com':'Copilot','edgeservices.bing.com':'Copilot','you.com':'You.com','phind.com':'Phind'};
 
 // ── STATE ─────────────────────────────────────────────────────────────────
 var TOKEN = null;
+var ACTIVE_SRC_FILTER = '';
 var CH = {};
 function pad(n){return String(n).padStart(2,'0');}
 function fd(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
@@ -229,18 +247,19 @@ var SD = fd(defS), ED = fd(defE);
 function showLd(t){document.getElementById('ld').style.display='flex';document.getElementById('lt').textContent=t||'Loading…';}
 function hideLd(){document.getElementById('ld').style.display='none';}
 function showErr(m){document.getElementById('em').textContent=m;document.getElementById('eb').style.display='flex';}
-function aiF(){
-  // Catches: direct AI referrals (chatgpt.com, claude.ai etc.) + Bing referral (copilot) + bing/organic (Copilot citations that land as organic)
-  return{orGroup:{expressions:[
-    {filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',
-      value:'chatgpt\\.com|perplexity\\.ai|claude\\.ai|gemini\\.google\\.com|copilot\\.microsoft|bing\\.com|msn\\.com|you\\.com|phind\\.com'}}},
-    {andGroup:{expressions:[
-      {filter:{fieldName:'sessionSource',stringFilter:{matchType:'EXACT',value:'bing'}}},
-      {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'organic'}}}
-    ]}}
+function aiF(sourceFilter){
+  // AI referral traffic ONLY: source must be an AI assistant domain + medium must be referral
+  // This excludes bing/organic (normal web search) which was incorrectly counted before
+  var sourceExpr = sourceFilter
+    ? {filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',value:sourceFilter}}}
+    : {filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',
+        value:'chatgpt\\.com|perplexity\\.ai|claude\\.ai|gemini\\.google\\.com|copilot\\.microsoft|edgeservices\\.bing|you\\.com|phind\\.com'}}};
+  return{andGroup:{expressions:[
+    sourceExpr,
+    {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'referral'}}}
   ]}};}
 function ep(v){var c=v>=65?'ph':v>=50?'pm':'pl';return'<span class="pill '+c+'">'+v.toFixed(1)+'%</span>';}
-function cn(s){var sl=s.toLowerCase();if(sl==='bing')return'bing.com';if(sl==='msn')return'msn.com';for(var i=0;i<AI_SOURCES.length;i++){if(sl.indexOf(AI_SOURCES[i].split('.')[0])>=0)return AI_SOURCES[i];}return s;}
+function cn(s){var sl=s.toLowerCase();if(sl.indexOf('edgeservices.bing')>=0||sl.indexOf('copilot.microsoft')>=0)return'copilot.microsoft.com';for(var i=0;i<AI_SOURCES.length;i++){if(sl.indexOf(AI_SOURCES[i].split('.')[0])>=0)return AI_SOURCES[i];}return s;}
 
 async function ga4(body){
   var r = await fetch('https://analyticsdata.googleapis.com/v1beta/properties/'+PROPERTY_ID+':runReport',
@@ -288,6 +307,12 @@ function initDash(){
 // ── DATE CONTROLS ─────────────────────────────────────────────────────────
 function clearQ(){document.querySelectorAll('.qb').forEach(function(b){b.classList.remove('act');});}
 function applyD(){SD=document.getElementById('df').value;ED=document.getElementById('dt').value;loadAll();}
+function setSrcFilter(filter,btn){
+  ACTIVE_SRC_FILTER=filter;
+  document.querySelectorAll('.sfb').forEach(function(b){b.classList.remove('act');});
+  btn.classList.add('act');
+  loadAll();
+}
 function setQ(days,btn){
   document.querySelectorAll('.qb').forEach(function(b){b.classList.remove('act');}); btn.classList.add('act');
   var e=new Date();e.setDate(e.getDate()-1);var s=new Date(e);s.setDate(s.getDate()-(days-1));
@@ -312,10 +337,10 @@ async function doKPIs(){
   showLd('Loading KPIs…');
   var dr={startDate:SD,endDate:ED};
   var res=await Promise.all([
-    ga4({dateRanges:[dr],metrics:[{name:'sessions'},{name:'engagementRate'},{name:'averageSessionDuration'}],dimensionFilter:aiF()}),
+    ga4({dateRanges:[dr],metrics:[{name:'sessions'},{name:'engagementRate'},{name:'averageSessionDuration'}],dimensionFilter:aiF(ACTIVE_SRC_FILTER)}),
     ga4({dateRanges:[dr],metrics:[{name:'sessions'},{name:'engagementRate'}]}),
     ga4({dateRanges:[dr],metrics:[{name:'eventCount'}],dimensions:[{name:'eventName'}],
-      dimensionFilter:{andGroup:{expressions:[aiF(),{filter:{fieldName:'eventName',stringFilter:{matchType:'EXACT',value:'affiliate_click'}}}]}}})
+      dimensionFilter:{andGroup:{expressions:[aiF(ACTIVE_SRC_FILTER),{filter:{fieldName:'eventName',stringFilter:{matchType:'EXACT',value:'affiliate_click'}}}]}}})
   ]);
   var ai=res[0].rows&&res[0].rows[0]?res[0].rows[0].metricValues:[];
   var all=res[1].rows&&res[1].rows[0]?res[1].rows[0].metricValues:[];
@@ -352,7 +377,7 @@ async function doKPIs(){
 async function doTrend(){
   showLd('Loading trend chart…');
   var r=await ga4({dateRanges:[{startDate:SD,endDate:ED}],dimensions:[{name:'date'},{name:'sessionSource'}],
-    metrics:[{name:'sessions'}],dimensionFilter:aiF(),
+    metrics:[{name:'sessions'}],dimensionFilter:aiF(ACTIVE_SRC_FILTER),
     orderBys:[{dimension:{dimensionName:'date',orderType:'ALPHANUMERIC'}}],limit:50000});
   var bd={},sf={};
   (r.rows||[]).forEach(function(row){
@@ -391,7 +416,7 @@ async function doSrc(){
   showLd('Loading sources…');
   var r=await ga4({dateRanges:[{startDate:SD,endDate:ED}],dimensions:[{name:'sessionSource'}],
     metrics:[{name:'sessions'},{name:'engagementRate'},{name:'averageSessionDuration'},{name:'bounceRate'}],
-    dimensionFilter:aiF(),orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:20});
+    dimensionFilter:aiF(ACTIVE_SRC_FILTER),orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:20});
   var bc={};
   (r.rows||[]).forEach(function(row){
     var c=cn(row.dimensionValues[0].value);
@@ -446,7 +471,7 @@ async function doPages(){
   showLd('Loading top pages…');
   var r=await ga4({dateRanges:[{startDate:SD,endDate:ED}],
     dimensions:[{name:'pagePath'},{name:'pageTitle'},{name:'sessionSource'}],
-    metrics:[{name:'sessions'},{name:'engagementRate'}],dimensionFilter:aiF(),
+    metrics:[{name:'sessions'},{name:'engagementRate'}],dimensionFilter:aiF(ACTIVE_SRC_FILTER),
     orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:50});
   var bp={};
   (r.rows||[]).forEach(function(row){
@@ -478,7 +503,7 @@ async function doShare(){
   var start=new Date(end);start.setDate(start.getDate()-179);
   var range={startDate:fd(start),endDate:fd(end)};
   var res=await Promise.all([
-    ga4({dateRanges:[range],dimensions:[{name:'yearMonth'}],metrics:[{name:'sessions'}],dimensionFilter:aiF()}),
+    ga4({dateRanges:[range],dimensions:[{name:'yearMonth'}],metrics:[{name:'sessions'}],dimensionFilter:aiF(ACTIVE_SRC_FILTER)}),
     ga4({dateRanges:[range],dimensions:[{name:'yearMonth'}],metrics:[{name:'sessions'}]})
   ]);
   var aiM={};(res[0].rows||[]).forEach(function(r){aiM[r.dimensionValues[0].value]=parseInt(r.metricValues[0].value);});
