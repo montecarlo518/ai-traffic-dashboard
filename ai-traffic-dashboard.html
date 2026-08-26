@@ -248,16 +248,14 @@ function showLd(t){document.getElementById('ld').style.display='flex';document.g
 function hideLd(){document.getElementById('ld').style.display='none';}
 function showErr(m){document.getElementById('em').textContent=m;document.getElementById('eb').style.display='flex';}
 function aiF(sourceFilter){
-  // AI referral traffic ONLY: source must be an AI assistant domain + medium must be referral
-  // This excludes bing/organic (normal web search) which was incorrectly counted before
-  var sourceExpr = sourceFilter
-    ? {filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',value:sourceFilter}}}
-    : {filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',
-        value:'chatgpt\\.com|perplexity\\.ai|claude\\.ai|gemini\\.google\\.com|copilot\\.microsoft|edgeservices\\.bing|you\\.com|phind\\.com'}}};
-  return{andGroup:{expressions:[
-    sourceExpr,
-    {filter:{fieldName:'sessionMedium',stringFilter:{matchType:'EXACT',value:'referral'}}}
-  ]}};}
+  // Filter by AI assistant source domain only.
+  // No medium filter: ChatGPT/Claude etc. can arrive as referral OR (none) depending on GA4 classification.
+  // Bing organic is naturally excluded because 'bing' alone doesn't match any of these full domains.
+  if(sourceFilter){
+    return{filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',value:sourceFilter}}};
+  }
+  return{filter:{fieldName:'sessionSource',stringFilter:{matchType:'PARTIAL_REGEXP',
+    value:'chatgpt\\.com|perplexity\\.ai|claude\\.ai|gemini\\.google\\.com|copilot\\.microsoft|edgeservices\\.bing|you\\.com|phind\\.com'}}};}
 function ep(v){var c=v>=65?'ph':v>=50?'pm':'pl';return'<span class="pill '+c+'">'+v.toFixed(1)+'%</span>';}
 function cn(s){var sl=s.toLowerCase();if(sl.indexOf('edgeservices.bing')>=0||sl.indexOf('copilot.microsoft')>=0)return'copilot.microsoft.com';for(var i=0;i<AI_SOURCES.length;i++){if(sl.indexOf(AI_SOURCES[i].split('.')[0])>=0)return AI_SOURCES[i];}return s;}
 
