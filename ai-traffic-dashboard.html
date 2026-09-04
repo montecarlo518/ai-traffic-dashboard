@@ -233,6 +233,7 @@ tr:last-child td{border-bottom:none}
       <div class="cb">
         <table><thead><tr><th>Page</th><th>Sessions</th><th>Eng. Rate</th><th>Outbound Clicks</th><th>Click Rate</th></tr></thead>
         <tbody id="bingTb"><tr><td colspan="5" class="nd">Loading…</td></tr></tbody></table>
+        <div style="font-size:10.5px;color:#999;padding:8px 2px 0;line-height:1.5">Click rate = affiliate_click events &divide; sessions for that page. One row per URL &mdash; title variants are combined. Can exceed 100% when a visitor clicks more than one link.</div>
       </div>
     </div>
 
@@ -251,6 +252,7 @@ tr:last-child td{border-bottom:none}
       <div class="cb">
         <table><thead><tr><th>Page</th><th>Sessions</th><th>Eng. Rate</th><th>Outbound Clicks</th><th>Click Rate</th></tr></thead>
         <tbody id="ddgTb"><tr><td colspan="5" class="nd">Loading…</td></tr></tbody></table>
+        <div style="font-size:10.5px;color:#999;padding:8px 2px 0;line-height:1.5">Click rate = affiliate_click events &divide; sessions for that page. One row per URL &mdash; title variants are combined. Can exceed 100% when a visitor clicks more than one link.</div>
       </div>
     </div>
 
@@ -369,38 +371,52 @@ function searchPageFilter(source){
 }
 
 async function doSearchPages(source, tbodyId, totalId, accentColor){
+  // Clicks keyed by pagePath ONLY. Querying with pageTitle here would split one
+  // path across its title variants and the lookup below would keep just one of them.
   var r = await ga4({
     dateRanges:[{startDate:SD,endDate:ED}],
-    dimensions:[{name:'pagePath'},{name:'pageTitle'}],
-    metrics:[{name:'sessions'},{name:'engagementRate'},{name:'eventCount'}],
+    dimensions:[{name:'pagePath'}],
+    metrics:[{name:'eventCount'}],
     dimensionFilter:{andGroup:{expressions:[
       searchPageFilter(source),
       {filter:{fieldName:'eventName',stringFilter:{matchType:'EXACT',value:'affiliate_click'}}}
     ]}},
-    orderBys:[{metric:{metricName:'sessions'},desc:true}],
-    limit:12
+    orderBys:[{metric:{metricName:'eventCount'},desc:true}],
+    limit:200
   });
-  // Also get sessions+eng without event filter (eventCount filter removes pages with 0 clicks)
+  // Sessions+eng without the event filter (that filter removes pages with 0 clicks).
+  // Fetch generously and group by path afterwards, so the top 12 are 12 distinct pages.
   var r2 = await ga4({
     dateRanges:[{startDate:SD,endDate:ED}],
     dimensions:[{name:'pagePath'},{name:'pageTitle'}],
     metrics:[{name:'sessions'},{name:'engagementRate'}],
     dimensionFilter:searchPageFilter(source),
     orderBys:[{metric:{metricName:'sessions'},desc:true}],
-    limit:12
+    limit:200
   });
-  // Merge: use r2 for sessions+eng (all pages), r for click counts
   var clicks={};
   (r.rows||[]).forEach(function(row){
-    clicks[row.dimensionValues[0].value]=parseInt(row.metricValues[2].value);
+    var p=row.dimensionValues[0].value;
+    clicks[p]=(clicks[p]||0)+parseInt(row.metricValues[0].value);
   });
-  var pages=(r2.rows||[]);
-  var totalS=pages.reduce(function(t,p){return t+parseInt(p.metricValues[0].value);},0);
-  var maxS=pages[0]?parseInt(pages[0].metricValues[0].value):1;
+  // Collapse title variants into one row per path: sum sessions, session-weight the
+  // engagement rate, and display the title of the highest-traffic variant.
+  var bp={};
+  (r2.rows||[]).forEach(function(row){
+    var p=row.dimensionValues[0].value,t=row.dimensionValues[1].value;
+    var s=parseInt(row.metricValues[0].value),e=parseFloat(row.metricValues[1].value)*100;
+    if(!bp[p])bp[p]={p:p,t:t,s:0,eS:0,topN:0};
+    bp[p].s+=s;bp[p].eS+=e*s;
+    if(s>bp[p].topN){bp[p].t=t;bp[p].topN=s;}
+  });
+  var allPages=Object.values(bp).sort(function(a,b){return b.s-a.s;});
+  var totalS=allPages.reduce(function(t,p){return t+p.s;},0);
+  var pages=allPages.slice(0,12);
+  var maxS=pages[0]?pages[0].s:1;
   document.getElementById(totalId).textContent=totalS.toLocaleString()+' total sessions';
   document.getElementById(tbodyId).innerHTML=pages.length?pages.map(function(p){
-    var path=p.dimensionValues[0].value,title=p.dimensionValues[1].value;
-    var s=parseInt(p.metricValues[0].value),e=parseFloat(p.metricValues[1].value)*100;
+    var path=p.p,title=p.t;
+    var s=p.s,e=p.s>0?p.eS/p.s:0;
     var c=clicks[path]||0,cr=s>0?(c/s*100):0,pct=Math.round(s/maxS*100);
     var ecls=e>=65?'ph':e>=50?'pm':'pl';
     return'<tr>'
